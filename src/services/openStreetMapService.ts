@@ -27,19 +27,19 @@ class OpenStreetMapService {
 
   private getIndustryTags(industry: string): string[] {
     const industryTagMap: Record<string, string[]> = {
-      'restaurants-food': ['amenity=restaurant', 'amenity=fast_food', 'amenity=cafe', 'amenity=bar', 'amenity=pub'],
-      'retail-shopping': ['shop=*', 'amenity=marketplace'],
-      'health-medical': ['amenity=hospital', 'amenity=clinic', 'amenity=doctors', 'amenity=dentist', 'amenity=pharmacy'],
-      'professional-services': ['office=*', 'amenity=bank', 'amenity=post_office'],
-      'home-services': ['craft=*', 'shop=hardware', 'shop=doityourself'],
-      'beauty-wellness': ['shop=beauty', 'shop=hairdresser', 'amenity=spa', 'leisure=fitness_centre'],
-      'automotive': ['shop=car_repair', 'shop=car', 'amenity=fuel', 'shop=car_parts'],
-      'real-estate': ['office=estate_agent'],
-      'construction': ['craft=carpenter', 'craft=electrician', 'craft=plumber'],
-      'education': ['amenity=school', 'amenity=university', 'amenity=college', 'amenity=kindergarten'],
-      'entertainment': ['amenity=cinema', 'amenity=theatre', 'leisure=*'],
-      'non-profit': ['amenity=social_facility', 'amenity=community_centre'],
-      'all': ['shop=*', 'amenity=*', 'office=*', 'craft=*', 'leisure=*']
+      'restaurants-food': ['amenity~"^(restaurant|fast_food|cafe|bar|pub)$"'],
+      'retail-shopping': ['shop', 'amenity~"^marketplace$"'],
+      'health-medical': ['amenity~"^(hospital|clinic|doctors|dentist|pharmacy)$"'],
+      'professional-services': ['office', 'amenity~"^(bank|post_office)$"'],
+      'home-services': ['craft', 'shop~"^(hardware|doityourself)$"'],
+      'beauty-wellness': ['shop~"^(beauty|hairdresser)$"', 'amenity~"^spa$"', 'leisure~"^fitness_centre$"'],
+      'automotive': ['shop~"^(car_repair|car|car_parts)$"', 'amenity~"^fuel$"'],
+      'real-estate': ['office~"^estate_agent$"'],
+      'construction': ['craft~"^(carpenter|electrician|plumber)$"'],
+      'education': ['amenity~"^(school|university|college|kindergarten)$"'],
+      'entertainment': ['amenity~"^(cinema|theatre)$"', 'leisure'],
+      'non-profit': ['amenity~"^(social_facility|community_centre)$"'],
+      'all': ['shop', 'amenity', 'office', 'craft', 'leisure']
     };
 
     return industryTagMap[industry] || industryTagMap['all'];
@@ -50,6 +50,11 @@ class OpenStreetMapService {
       const response = await fetch(
         `${this.NOMINATIM_API}?format=json&q=${encodeURIComponent(location)}&limit=1&addressdetails=1`
       );
+      
+      if (!response.ok) {
+        throw new Error(`Nominatim API request failed: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data && data.length > 0) {
@@ -69,26 +74,34 @@ class OpenStreetMapService {
   }
 
   private buildOverpassQuery(lat: number, lon: number, radius: number, industryTags: string[]): string {
-    const radiusMeters = radius * 1609.34; // Convert miles to meters
+    const radiusMeters = Math.round(radius * 1609.34); // Convert miles to meters
     
-    const tagQueries = industryTags.map(tag => `node[${tag}](around:${radiusMeters},${lat},${lon});`).join('\n');
-    const wayQueries = industryTags.map(tag => `way[${tag}](around:${radiusMeters},${lat},${lon});`).join('\n');
+    // Build query parts for each tag
+    const queryParts = industryTags.map(tag => {
+      if (tag.includes('~')) {
+        // For regex tags
+        return `
+          node[${tag}](around:${radiusMeters},${lat},${lon});
+          way[${tag}](around:${radiusMeters},${lat},${lon});`;
+      } else {
+        // For simple tags
+        return `
+          node["${tag}"](around:${radiusMeters},${lat},${lon});
+          way["${tag}"](around:${radiusMeters},${lat},${lon});`;
+      }
+    }).join('');
     
-    return `
-      [out:json][timeout:25];
-      (
-        ${tagQueries}
-        ${wayQueries}
-      );
-      out center meta;
-    `;
+    return `[out:json][timeout:30];
+(${queryParts}
+);
+out center meta;`;
   }
 
   private parseBusinessData(element: any): BusinessData | null {
     const tags = element.tags || {};
-    const name = tags.name || tags['name:en'] || tags.brand || 'Unnamed Business';
+    const name = tags.name || tags['name:en'] || tags.brand;
     
-    if (!name || name === 'Unnamed Business') return null;
+    if (!name || name.trim() === '') return null;
 
     // Get coordinates
     const lat = element.lat || element.center?.lat;
@@ -163,7 +176,7 @@ class OpenStreetMapService {
 
     return {
       id: `osm_${element.type}_${element.id}`,
-      name,
+      name: name.trim(),
       address,
       city,
       state,
@@ -185,13 +198,14 @@ class OpenStreetMapService {
       // First, geocode the location
       const locationData = await this.geocodeLocation(params.location);
       if (!locationData) {
-        throw new Error('Could not find the specified location');
+        throw new Error('Could not find the specified location. Please try a different location or be more specific.');
       }
 
       console.log('Geocoded location:', locationData);
 
       // Get industry tags
       const industryTags = this.getIndustryTags(params.industry);
+      console.log('Industry tags:', industryTags);
       
       // Build and execute Overpass query
       const query = this.buildOverpassQuery(
@@ -212,13 +226,15 @@ class OpenStreetMapService {
       });
 
       if (!response.ok) {
-        throw new Error(`Overpass API request failed: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Overpass API error response:', errorText);
+        throw new Error(`Failed to search businesses. The search service is temporarily unavailable. Please try again in a moment.`);
       }
 
       const data = await response.json();
-      console.log('Overpass API response:', data);
+      console.log('Overpass API response elements count:', data.elements?.length || 0);
 
-      if (!data.elements) {
+      if (!data.elements || data.elements.length === 0) {
         return [];
       }
 
@@ -226,14 +242,17 @@ class OpenStreetMapService {
       const businesses = data.elements
         .map((element: any) => this.parseBusinessData(element))
         .filter((business: BusinessData | null): business is BusinessData => business !== null)
-        .filter((business: BusinessData) => business.name !== 'Unnamed Business');
+        .slice(0, 100); // Limit to 100 results to avoid overwhelming the user
 
-      console.log(`Found ${businesses.length} businesses`);
+      console.log(`Found ${businesses.length} businesses after filtering`);
       return businesses;
 
     } catch (error) {
       console.error('Business search failed:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unexpected error occurred while searching for businesses. Please try again.');
     }
   }
 }
