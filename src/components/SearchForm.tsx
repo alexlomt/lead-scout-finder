@@ -122,8 +122,12 @@ const SearchForm = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           <SearchFormFields 
-            searchCriteria={searchCriteria}
-            setSearchCriteria={setSearchCriteria}
+            location={searchCriteria.location}
+            setLocation={(value) => setSearchCriteria(prev => ({ ...prev, location: value }))}
+            industry={searchCriteria.industry}
+            setIndustry={(value) => setSearchCriteria(prev => ({ ...prev, industry: value }))}
+            radius={searchCriteria.radius}
+            setRadius={(value) => setSearchCriteria(prev => ({ ...prev, radius: value }))}
           />
           
           {/* Rate limit display */}
