@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, FileText, Users, BarChart3, History } from "lucide-react";
+import { Search, FileText, Users, BarChart3, History, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
@@ -15,6 +15,10 @@ const Dashboard = () => {
 
   const handleViewSavedSearches = () => {
     navigate('/saved-searches');
+  };
+
+  const handleAccountSettings = () => {
+    navigate('/account');
   };
 
   return (
@@ -33,6 +37,15 @@ const Dashboard = () => {
               <span className="text-gray-600">
                 Welcome, {profile?.first_name || user?.email}!
               </span>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleAccountSettings}
+                className="flex items-center gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </Button>
               <Button variant="outline" onClick={signOut}>
                 Sign Out
               </Button>

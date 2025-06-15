@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Search from "./pages/Search";
 import Results from "./pages/Results";
 import SavedSearches from "./pages/SavedSearches";
+import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -55,6 +56,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <SavedSearches />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/account" 
+              element={
+                <ProtectedRoute>
+                  <AccountSettings />
                 </ProtectedRoute>
               } 
             />
