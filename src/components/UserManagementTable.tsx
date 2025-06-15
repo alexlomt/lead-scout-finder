@@ -147,7 +147,7 @@ const UserManagementTable = () => {
                       </Button>
                       <Select
                         value={user.subscription_plan}
-                        onValueChange={(newPlan) => handleChangePlan(user.id, newPlan)}
+                        onValueChange={(newPlan) => handleChangePlan(user.id, newPlan as SubscriptionPlan)}
                         disabled={loadingActions[`plan_${user.id}`]}
                       >
                         <SelectTrigger className="w-24">
