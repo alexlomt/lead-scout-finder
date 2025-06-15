@@ -1,8 +1,11 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Building } from "lucide-react";
+import { MapPin, Building, Locate } from "lucide-react";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { useEffect } from "react";
 
 interface SearchFormFieldsProps {
   location: string;
@@ -21,6 +24,8 @@ const SearchFormFields = ({
   radius,
   setRadius
 }: SearchFormFieldsProps) => {
+  const { latitude, longitude, loading: locationLoading, getCurrentLocation, reverseGeocode } = useGeolocation();
+
   const industries = [
     "Restaurants & Food",
     "Retail & Shopping",
@@ -36,6 +41,19 @@ const SearchFormFields = ({
     "Non-Profit"
   ];
 
+  // When we get coordinates, reverse geocode to get the location name
+  useEffect(() => {
+    if (latitude && longitude) {
+      reverseGeocode(latitude, longitude).then(locationName => {
+        setLocation(locationName);
+      });
+    }
+  }, [latitude, longitude, reverseGeocode, setLocation]);
+
+  const handleUseMyLocation = () => {
+    getCurrentLocation();
+  };
+
   return (
     <div className="space-y-6">
       {/* Location Input */}
@@ -43,15 +61,27 @@ const SearchFormFields = ({
         <Label htmlFor="location" className="text-sm font-medium text-gray-700">
           Location
         </Label>
-        <div className="relative">
-          <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-          <Input
-            id="location"
-            placeholder="Enter city or ZIP code (e.g., San Francisco, CA or 94102)"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="pl-10 h-12"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+            <Input
+              id="location"
+              placeholder="Enter city or ZIP code (e.g., San Francisco, CA or 94102)"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="pl-10 h-12"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleUseMyLocation}
+            disabled={locationLoading}
+            className="h-12 px-4 flex items-center gap-2"
+          >
+            <Locate className="h-4 w-4" />
+            {locationLoading ? "Getting..." : "Use My Location"}
+          </Button>
         </div>
       </div>
 

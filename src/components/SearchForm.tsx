@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import SearchFormFields from "./SearchFormFields";
 import RateLimitDisplay from "./RateLimitDisplay";
 import { useRateLimit } from "@/hooks/useRateLimit";
+import { openStreetMapService, BusinessData } from "@/services/openStreetMapService";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface SearchCriteria {
   location: string;
@@ -26,6 +28,58 @@ const SearchForm = () => {
     radius: "10",
     industry: "",
   });
+
+  const calculateWebPresenceScore = (business: BusinessData): number => {
+    let score = 0;
+    
+    // Basic presence (name and location)
+    if (business.name) score += 2;
+    if (business.address) score += 1;
+    
+    // Contact information
+    if (business.phone) score += 2;
+    if (business.email) score += 2;
+    
+    // Website presence
+    if (business.website) {
+      score += 3;
+    } else {
+      // If no website, this is a good lead for web services
+      score = Math.max(score - 2, 1);
+    }
+    
+    return Math.min(score, 10);
+  };
+
+  const saveSearchResults = async (searchId: string, businesses: BusinessData[]) => {
+    try {
+      const searchResults = businesses.map(business => ({
+        search_id: searchId,
+        business_name: business.name,
+        address: business.address,
+        phone: business.phone,
+        email: business.email,
+        website: business.website,
+        has_website: !!business.website,
+        has_social_media: false, // We'll enhance this later with social media APIs
+        web_presence_score: calculateWebPresenceScore(business)
+      }));
+
+      const { error } = await supabase
+        .from('search_results')
+        .insert(searchResults);
+
+      if (error) {
+        console.error('Error saving search results:', error);
+        throw error;
+      }
+
+      console.log(`Saved ${searchResults.length} search results`);
+    } catch (error) {
+      console.error('Failed to save search results:', error);
+      throw error;
+    }
+  };
 
   const handleSearch = async () => {
     if (!user) {
@@ -78,30 +132,63 @@ const SearchForm = () => {
     setIsSearching(true);
 
     try {
-      // Simulate search API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Starting search with criteria:', searchCriteria);
+
+      // Search for businesses using OpenStreetMap
+      const businesses = await openStreetMapService.searchBusinesses({
+        location: searchCriteria.location,
+        industry: searchCriteria.industry,
+        radius: parseInt(searchCriteria.radius)
+      });
+
+      console.log(`Found ${businesses.length} businesses from OpenStreetMap`);
+
+      if (businesses.length === 0) {
+        toast({
+          title: "No Results Found",
+          description: "No businesses found in this area. Try expanding your search radius or changing the location.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create search record in database
+      const { data: searchRecord, error: searchError } = await supabase
+        .from('searches')
+        .insert({
+          user_id: user.id,
+          location: searchCriteria.location,
+          industry: searchCriteria.industry === 'all' ? null : searchCriteria.industry,
+          radius: parseInt(searchCriteria.radius),
+          results_count: businesses.length
+        })
+        .select()
+        .single();
+
+      if (searchError) {
+        console.error('Error creating search record:', searchError);
+        throw searchError;
+      }
+
+      // Save search results to database
+      await saveSearchResults(searchRecord.id, businesses);
 
       // Update search count after successful search
       await refreshProfile();
 
-      // Navigate to results with search criteria
-      navigate('/results', { 
-        state: { 
-          searchCriteria,
-          searchId: Date.now().toString() 
-        } 
-      });
+      // Navigate to results with search ID
+      navigate(`/results?search=${searchRecord.id}`);
 
       toast({
         title: "Search Completed",
-        description: "Found businesses matching your criteria!",
+        description: `Found ${businesses.length} businesses matching your criteria!`,
       });
 
     } catch (error) {
       console.error('Search error:', error);
       toast({
         title: "Search Failed",
-        description: "There was an error running your search. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error running your search. Please try again.",
         variant: "destructive",
       });
     } finally {
