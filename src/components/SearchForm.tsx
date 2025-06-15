@@ -6,8 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import SearchFormFields from "./SearchFormFields";
-import RateLimitDisplay from "./RateLimitDisplay";
-import { useRateLimit } from "@/hooks/useRateLimit";
 import { openStreetMapService, BusinessData } from "@/services/openStreetMapService";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,7 +19,6 @@ const SearchForm = () => {
   const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { checkLimit } = useRateLimit();
   const [isSearching, setIsSearching] = useState(false);
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria>({
     location: "",
@@ -86,16 +83,6 @@ const SearchForm = () => {
       toast({
         title: "Authentication Required",
         description: "Please sign in to run searches.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check rate limit first
-    if (!checkLimit('search')) {
-      toast({
-        title: "Rate Limit Exceeded",
-        description: "You've reached the maximum number of searches per hour. Please wait before trying again.",
         variant: "destructive",
       });
       return;
@@ -216,9 +203,6 @@ const SearchForm = () => {
             radius={searchCriteria.radius}
             setRadius={(value) => setSearchCriteria(prev => ({ ...prev, radius: value }))}
           />
-          
-          {/* Rate limit display */}
-          <RateLimitDisplay operation="search" />
 
           <div className="flex items-center justify-between pt-4">
             <div className="text-sm text-muted-foreground">
