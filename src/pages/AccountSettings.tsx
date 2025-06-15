@@ -236,11 +236,18 @@ const AccountSettings = () => {
               {/* Upgrade/Manage Plan */}
               <div className="pt-4">
                 {profile?.subscription_plan === 'free' ? (
-                  <Button className="w-full md:w-auto">
+                  <Button 
+                    className="w-full md:w-auto"
+                    onClick={() => navigate('/billing')}
+                  >
                     Upgrade Plan
                   </Button>
                 ) : (
-                  <Button variant="outline" className="w-full md:w-auto">
+                  <Button 
+                    variant="outline" 
+                    className="w-full md:w-auto"
+                    onClick={() => navigate('/billing')}
+                  >
                     Manage Billing
                   </Button>
                 )}
