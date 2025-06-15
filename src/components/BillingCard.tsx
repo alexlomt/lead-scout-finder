@@ -48,7 +48,7 @@ const plans: Plan[] = [
     interval: 'month',
     searches: 50,
     exports: 500,
-    stripePriceId: 'price_base_monthly',
+    stripePriceId: 'price_1QVmUjAJNaWxAkOdBZzV9kXJ',
     features: [
       { name: '50 searches per month', included: true },
       { name: '500 row exports', included: true },
@@ -64,7 +64,7 @@ const plans: Plan[] = [
     interval: 'month',
     searches: 200,
     exports: 2000,
-    stripePriceId: 'price_pro_monthly',
+    stripePriceId: 'price_1QVmVPAJNaWxAkOdtpWLqXm8',
     popular: true,
     features: [
       { name: '200 searches per month', included: true },
@@ -81,7 +81,7 @@ const plans: Plan[] = [
     interval: 'month',
     searches: 500,
     exports: 999999,
-    stripePriceId: 'price_agency_monthly',
+    stripePriceId: 'price_1QVmVnAJNaWxAkOdfiMlJF9x',
     features: [
       { name: '500+ searches per month', included: true },
       { name: 'Unlimited exports', included: true },
