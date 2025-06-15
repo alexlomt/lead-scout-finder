@@ -12,6 +12,8 @@ import Search from "./pages/Search";
 import Results from "./pages/Results";
 import SavedSearches from "./pages/SavedSearches";
 import AccountSettings from "./pages/AccountSettings";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -27,6 +29,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
             <Route 
               path="/dashboard" 
               element={
