@@ -1,7 +1,6 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,9 +13,12 @@ import { toast } from "sonner";
 const Search = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const [location, setLocation] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [radius, setRadius] = useState("10");
+  const [searchParams] = useSearchParams();
+  
+  // Initialize state from URL params if available
+  const [location, setLocation] = useState(searchParams.get('location') || "");
+  const [industry, setIndustry] = useState(searchParams.get('industry') || "");
+  const [radius, setRadius] = useState(searchParams.get('radius') || "10");
   const [isSearching, setIsSearching] = useState(false);
 
   const industries = [

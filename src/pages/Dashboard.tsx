@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, FileText, Users, BarChart3 } from "lucide-react";
+import { Search, FileText, Users, BarChart3, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
@@ -11,6 +11,10 @@ const Dashboard = () => {
 
   const handleNewSearch = () => {
     navigate('/search');
+  };
+
+  const handleViewSavedSearches = () => {
+    navigate('/saved-searches');
   };
 
   return (
@@ -111,15 +115,18 @@ const Dashboard = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Searches</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Saved Searches
+              </CardTitle>
               <CardDescription>
-                View and manage your previous searches
+                View and rerun your previous searches
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500 text-center py-4">
-                No searches yet. Start your first search to see results here.
-              </p>
+              <Button variant="outline" className="w-full" onClick={handleViewSavedSearches}>
+                View Search History
+              </Button>
             </CardContent>
           </Card>
         </div>

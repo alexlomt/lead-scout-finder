@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Search from "./pages/Search";
 import Results from "./pages/Results";
+import SavedSearches from "./pages/SavedSearches";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -46,6 +47,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Results />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/saved-searches" 
+              element={
+                <ProtectedRoute>
+                  <SavedSearches />
                 </ProtectedRoute>
               } 
             />
