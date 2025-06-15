@@ -3,9 +3,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, FileText, Users, BarChart3 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleNewSearch = () => {
+    navigate('/search');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -48,8 +54,8 @@ const Dashboard = () => {
               <Search className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">of 5 free searches</p>
+              <div className="text-2xl font-bold">{profile?.searches_used || 0}</div>
+              <p className="text-xs text-muted-foreground">of {profile?.searches_limit || 5} searches</p>
             </CardContent>
           </Card>
 
@@ -97,7 +103,7 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full">
+              <Button className="w-full" onClick={handleNewSearch}>
                 Run New Search
               </Button>
             </CardContent>
