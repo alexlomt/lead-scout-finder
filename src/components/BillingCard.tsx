@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,7 @@ import { Check, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PlanFeature {
   name: string;
@@ -115,30 +115,36 @@ const BillingCard = () => {
     setLoading(plan.id);
 
     try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId: plan.stripePriceId,
-          userId: user.id,
-        }),
+      console.log('Calling create-checkout-session function with:', {
+        priceId: plan.stripePriceId,
+        userId: user.id,
       });
 
-      const data = await response.json();
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          priceId: plan.stripePriceId,
+          userId: user.id,
+        },
+      });
 
-      if (data.url) {
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to create checkout session');
+      }
+
+      console.log('Function response:', data);
+
+      if (data?.url) {
         // Open Stripe checkout in a new tab
         window.open(data.url, '_blank');
       } else {
-        throw new Error('Failed to create checkout session');
+        throw new Error('No checkout URL received from server');
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
       toast({
         title: "Error",
-        description: "Failed to start checkout process. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to start checkout process. Please try again.",
         variant: "destructive",
       });
     } finally {
