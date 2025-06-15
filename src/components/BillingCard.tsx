@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +49,7 @@ const plans: Plan[] = [
     interval: 'month',
     searches: 50,
     exports: 500,
-    stripePriceId: 'price_1QVmUjAJNaWxAkOdBZzV9kXJ',
+    stripePriceId: 'price_1RaNJYKS91JZt4kjU5Nbnw0i',
     features: [
       { name: '50 searches per month', included: true },
       { name: '500 row exports', included: true },
@@ -64,7 +65,7 @@ const plans: Plan[] = [
     interval: 'month',
     searches: 200,
     exports: 2000,
-    stripePriceId: 'price_1QVmVPAJNaWxAkOdtpWLqXm8',
+    stripePriceId: 'price_1RaNLUKS91JZt4kjkisfSqKz',
     popular: true,
     features: [
       { name: '200 searches per month', included: true },
@@ -81,7 +82,7 @@ const plans: Plan[] = [
     interval: 'month',
     searches: 500,
     exports: 999999,
-    stripePriceId: 'price_1QVmVnAJNaWxAkOdfiMlJF9x',
+    stripePriceId: 'price_1RaNM8KS91JZt4kjz3KoXyFW',
     features: [
       { name: '500+ searches per month', included: true },
       { name: 'Unlimited exports', included: true },
