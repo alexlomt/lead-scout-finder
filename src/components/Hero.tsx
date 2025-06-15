@@ -2,8 +2,11 @@
 import { Button } from "@/components/ui/button";
 import { Search, Target, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Hero = () => {
+  const { user } = useAuth();
+
   return (
     <section className="bg-gradient-to-br from-primary-50 to-accent-50 py-20 lg:py-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -17,11 +20,19 @@ const Hero = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
-            <Link to="/auth">
-              <Button size="lg" className="bg-accent hover:bg-accent-600 text-white px-8 py-3 text-lg">
-                Start Free Trial - 5 Searches
-              </Button>
-            </Link>
+            {user ? (
+              <Link to="/dashboard">
+                <Button size="lg" className="bg-accent hover:bg-accent-600 text-white px-8 py-3 text-lg">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button size="lg" className="bg-accent hover:bg-accent-600 text-white px-8 py-3 text-lg">
+                  Start Free Trial - 5 Searches
+                </Button>
+              </Link>
+            )}
             <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary hover:text-white px-8 py-3 text-lg">
               Watch Demo
             </Button>

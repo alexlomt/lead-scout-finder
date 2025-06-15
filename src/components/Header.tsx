@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Search, Menu } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -27,14 +29,24 @@ const Header = () => {
             <a href="#pricing" className="text-gray-600 hover:text-primary transition-colors">
               Pricing
             </a>
-            <Link to="/auth" className="text-gray-600 hover:text-primary transition-colors">
-              Sign In
-            </Link>
-            <Link to="/auth">
-              <Button className="bg-accent hover:bg-accent-600 text-white">
-                Start Free Trial
-              </Button>
-            </Link>
+            {user ? (
+              <Link to="/dashboard">
+                <Button className="bg-accent hover:bg-accent-600 text-white">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth" className="text-gray-600 hover:text-primary transition-colors">
+                  Sign In
+                </Link>
+                <Link to="/auth">
+                  <Button className="bg-accent hover:bg-accent-600 text-white">
+                    Start Free Trial
+                  </Button>
+                </Link>
+              </>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -56,14 +68,24 @@ const Header = () => {
               <a href="#pricing" className="text-gray-600 hover:text-primary transition-colors py-2">
                 Pricing
               </a>
-              <Link to="/auth" className="text-gray-600 hover:text-primary transition-colors py-2">
-                Sign In
-              </Link>
-              <Link to="/auth">
-                <Button className="bg-accent hover:bg-accent-600 text-white mt-2">
-                  Start Free Trial
-                </Button>
-              </Link>
+              {user ? (
+                <Link to="/dashboard">
+                  <Button className="bg-accent hover:bg-accent-600 text-white mt-2">
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth" className="text-gray-600 hover:text-primary transition-colors py-2">
+                    Sign In
+                  </Link>
+                  <Link to="/auth">
+                    <Button className="bg-accent hover:bg-accent-600 text-white mt-2">
+                      Start Free Trial
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}
