@@ -14,10 +14,12 @@ import Results from "./pages/Results";
 import SavedSearches from "./pages/SavedSearches";
 import AccountSettings from "./pages/AccountSettings";
 import Billing from "./pages/Billing";
+import Admin from "./pages/Admin";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +81,16 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Billing />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <Admin />
+                    </AdminRoute>
                   </ProtectedRoute>
                 } 
               />
