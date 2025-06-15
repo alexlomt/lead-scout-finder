@@ -26,11 +26,45 @@ export const useSearchHistory = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('saved_searches')
+      // Try to fetch from saved_searches table first, fall back to searches table
+      let { data, error } = await supabase
+        .from('saved_searches' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+
+      // If saved_searches doesn't exist yet, use searches table as fallback
+      if (error && error.code === '42P01') {
+        const { data: searchData, error: searchError } = await supabase
+          .from('searches')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (searchError) {
+          console.error('Error loading searches:', searchError);
+          toast({
+            title: "Error",
+            description: "Failed to load saved searches.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const formattedSearches: SavedSearch[] = searchData.map(search => ({
+          id: search.id,
+          name: `${search.location} - ${search.industry || 'All Industries'}`,
+          location: search.location,
+          industry: search.industry || 'All Industries',
+          radius: search.radius,
+          resultsCount: search.results_count || 0,
+          createdAt: search.created_at,
+          lastRun: search.created_at,
+        }));
+
+        setSavedSearches(formattedSearches);
+        return;
+      }
 
       if (error) {
         console.error('Error loading saved searches:', error);
@@ -42,11 +76,11 @@ export const useSearchHistory = () => {
         return;
       }
 
-      const formattedSearches: SavedSearch[] = data.map(search => ({
+      const formattedSearches: SavedSearch[] = data.map((search: any) => ({
         id: search.id,
         name: search.search_name,
         location: search.location,
-        industry: search.industry,
+        industry: search.industry || 'All Industries',
         radius: search.radius,
         resultsCount: search.results_count || 0,
         createdAt: search.created_at,
@@ -76,8 +110,9 @@ export const useSearchHistory = () => {
     if (!user) return false;
 
     try {
+      // Try to save to saved_searches table
       const { error } = await supabase
-        .from('saved_searches')
+        .from('saved_searches' as any)
         .insert({
           user_id: user.id,
           search_name: searchParams.name,
@@ -121,7 +156,7 @@ export const useSearchHistory = () => {
 
     try {
       const { error } = await supabase
-        .from('saved_searches')
+        .from('saved_searches' as any)
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);
@@ -144,7 +179,7 @@ export const useSearchHistory = () => {
 
     try {
       const { error } = await supabase
-        .from('saved_searches')
+        .from('saved_searches' as any)
         .update({
           last_run: new Date().toISOString(),
         })

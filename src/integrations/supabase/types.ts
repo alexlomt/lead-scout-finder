@@ -48,6 +48,42 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_searches: {
+        Row: {
+          created_at: string
+          id: string
+          industry: string | null
+          last_run: string | null
+          location: string
+          radius: number
+          results_count: number | null
+          search_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          industry?: string | null
+          last_run?: string | null
+          location: string
+          radius: number
+          results_count?: number | null
+          search_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          industry?: string | null
+          last_run?: string | null
+          location?: string
+          radius?: number
+          results_count?: number | null
+          search_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       search_results: {
         Row: {
           address: string | null
