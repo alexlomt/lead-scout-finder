@@ -3,13 +3,16 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
+
+type SubscriptionPlan = Database['public']['Enums']['subscription_plan'];
 
 interface AdminUser {
   id: string;
   email: string;
   first_name: string | null;
   last_name: string | null;
-  subscription_plan: string;
+  subscription_plan: SubscriptionPlan;
   searches_used: number;
   searches_limit: number;
   exports_limit: number;
@@ -139,7 +142,7 @@ export const useAdmin = () => {
     }
   };
 
-  const changeUserPlan = async (userId: string, newPlan: string) => {
+  const changeUserPlan = async (userId: string, newPlan: SubscriptionPlan) => {
     try {
       const { error } = await supabase.rpc('change_user_plan', {
         target_user_id: userId,
