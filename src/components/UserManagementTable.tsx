@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Search, RefreshCw, Shield } from "lucide-react";
 import { useAdmin } from '@/hooks/useAdmin';
+import type { Database } from '@/integrations/supabase/types';
+
+type SubscriptionPlan = Database['public']['Enums']['subscription_plan'];
 
 const UserManagementTable = () => {
   const { users, resetUserRateLimit, changeUserPlan, refreshData } = useAdmin();
@@ -32,7 +35,7 @@ const UserManagementTable = () => {
     setLoadingActions(prev => ({ ...prev, [`reset_${userId}`]: false }));
   };
 
-  const handleChangePlan = async (userId: string, newPlan: string) => {
+  const handleChangePlan = async (userId: string, newPlan: SubscriptionPlan) => {
     setLoadingActions(prev => ({ ...prev, [`plan_${userId}`]: true }));
     await changeUserPlan(userId, newPlan);
     setLoadingActions(prev => ({ ...prev, [`plan_${userId}`]: false }));
