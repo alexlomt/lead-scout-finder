@@ -54,7 +54,7 @@ const Search = () => {
         .insert({
           user_id: user.id,
           location,
-          industry: industry || null,
+          industry: industry === "all" ? null : industry,
           radius: parseInt(radius)
         })
         .select()
@@ -216,7 +216,7 @@ const Search = () => {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Industries</SelectItem>
+                  <SelectItem value="all">All Industries</SelectItem>
                   {industries.map((ind) => (
                     <SelectItem key={ind} value={ind.toLowerCase().replace(/[^a-z0-9]/g, '-')}>
                       {ind}
