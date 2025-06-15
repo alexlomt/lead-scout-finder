@@ -27,18 +27,18 @@ const SearchFormFields = ({
   const { latitude, longitude, loading: locationLoading, getCurrentLocation, reverseGeocode } = useGeolocation();
 
   const industries = [
-    "Restaurants & Food",
-    "Retail & Shopping",
-    "Health & Medical",
-    "Professional Services",
-    "Home Services",
-    "Beauty & Wellness",
-    "Automotive",
-    "Real Estate",
-    "Construction",
-    "Education",
-    "Entertainment",
-    "Non-Profit"
+    { display: "Restaurants & Food", value: "restaurants-food" },
+    { display: "Retail & Shopping", value: "retail-shopping" },
+    { display: "Health & Medical", value: "health-medical" },
+    { display: "Professional Services", value: "professional-services" },
+    { display: "Home Services", value: "home-services" },
+    { display: "Beauty & Wellness", value: "beauty-wellness" },
+    { display: "Automotive", value: "automotive" },
+    { display: "Real Estate", value: "real-estate" },
+    { display: "Construction", value: "construction" },
+    { display: "Education", value: "education" },
+    { display: "Entertainment", value: "entertainment" },
+    { display: "Non-Profit", value: "non-profit" }
   ];
 
   // When we get coordinates, reverse geocode to get the location name
@@ -100,8 +100,8 @@ const SearchFormFields = ({
           <SelectContent>
             <SelectItem value="all">All Industries</SelectItem>
             {industries.map((ind) => (
-              <SelectItem key={ind} value={ind.toLowerCase().replace(/[^a-z0-9]/g, '-')}>
-                {ind}
+              <SelectItem key={ind.value} value={ind.value}>
+                {ind.display}
               </SelectItem>
             ))}
           </SelectContent>
