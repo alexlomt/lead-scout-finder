@@ -9,7 +9,125 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          exports_limit: number
+          first_name: string | null
+          id: string
+          last_name: string | null
+          searches_limit: number
+          searches_used: number
+          subscription_plan: Database["public"]["Enums"]["subscription_plan"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          exports_limit?: number
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          searches_limit?: number
+          searches_used?: number
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          exports_limit?: number
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          searches_limit?: number
+          searches_used?: number
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      search_results: {
+        Row: {
+          address: string | null
+          business_name: string
+          created_at: string
+          email: string | null
+          has_social_media: boolean | null
+          has_website: boolean | null
+          id: string
+          phone: string | null
+          search_id: string
+          web_presence_score: number | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_name: string
+          created_at?: string
+          email?: string | null
+          has_social_media?: boolean | null
+          has_website?: boolean | null
+          id?: string
+          phone?: string | null
+          search_id: string
+          web_presence_score?: number | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_name?: string
+          created_at?: string
+          email?: string | null
+          has_social_media?: boolean | null
+          has_website?: boolean | null
+          id?: string
+          phone?: string | null
+          search_id?: string
+          web_presence_score?: number | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_results_search_id_fkey"
+            columns: ["search_id"]
+            isOneToOne: false
+            referencedRelation: "searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      searches: {
+        Row: {
+          created_at: string
+          id: string
+          industry: string | null
+          location: string
+          radius: number
+          results_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          industry?: string | null
+          location: string
+          radius: number
+          results_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          industry?: string | null
+          location?: string
+          radius?: number
+          results_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +136,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      subscription_plan: "free" | "base" | "pro" | "agency"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +251,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_plan: ["free", "base", "pro", "agency"],
+    },
   },
 } as const
