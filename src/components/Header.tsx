@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Search, Menu } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -26,12 +27,14 @@ const Header = () => {
             <a href="#pricing" className="text-gray-600 hover:text-primary transition-colors">
               Pricing
             </a>
-            <a href="#" className="text-gray-600 hover:text-primary transition-colors">
+            <Link to="/auth" className="text-gray-600 hover:text-primary transition-colors">
               Sign In
-            </a>
-            <Button className="bg-accent hover:bg-accent-600 text-white">
-              Start Free Trial
-            </Button>
+            </Link>
+            <Link to="/auth">
+              <Button className="bg-accent hover:bg-accent-600 text-white">
+                Start Free Trial
+              </Button>
+            </Link>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -53,12 +56,14 @@ const Header = () => {
               <a href="#pricing" className="text-gray-600 hover:text-primary transition-colors py-2">
                 Pricing
               </a>
-              <a href="#" className="text-gray-600 hover:text-primary transition-colors py-2">
+              <Link to="/auth" className="text-gray-600 hover:text-primary transition-colors py-2">
                 Sign In
-              </a>
-              <Button className="bg-accent hover:bg-accent-600 text-white mt-2">
-                Start Free Trial
-              </Button>
+              </Link>
+              <Link to="/auth">
+                <Button className="bg-accent hover:bg-accent-600 text-white mt-2">
+                  Start Free Trial
+                </Button>
+              </Link>
             </div>
           </div>
         )}

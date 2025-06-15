@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Search, Target, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -16,9 +17,11 @@ const Hero = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
-            <Button size="lg" className="bg-accent hover:bg-accent-600 text-white px-8 py-3 text-lg">
-              Start Free Trial - 5 Searches
-            </Button>
+            <Link to="/auth">
+              <Button size="lg" className="bg-accent hover:bg-accent-600 text-white px-8 py-3 text-lg">
+                Start Free Trial - 5 Searches
+              </Button>
+            </Link>
             <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary hover:text-white px-8 py-3 text-lg">
               Watch Demo
             </Button>
