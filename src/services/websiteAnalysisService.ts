@@ -27,14 +27,21 @@ export class WebsiteAnalysisService {
         return;
       }
 
-      console.log(`Starting analysis for ${results.length} businesses`);
+      console.log(`Starting enhanced analysis for ${results.length} businesses`);
+
+      // Update all results to analyzing status
+      await supabase
+        .from('search_results')
+        .update({ analysis_status: 'analyzing' })
+        .eq('search_id', searchId)
+        .in('analysis_status', ['pending', 'basic_complete']);
 
       // Process each result (we could batch this in the future)
       for (const result of results) {
         try {
           await this.analyzeIndividualResult(result);
           // Small delay to avoid overwhelming APIs
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500));
         } catch (error) {
           console.error(`Failed to analyze ${result.business_name}:`, error);
           
@@ -46,9 +53,9 @@ export class WebsiteAnalysisService {
         }
       }
 
-      console.log('Analysis batch complete');
+      console.log('Enhanced analysis batch complete');
     } catch (error) {
-      console.error('Failed to start analysis:', error);
+      console.error('Failed to start enhanced analysis:', error);
     }
   }
 
@@ -91,13 +98,14 @@ export class WebsiteAnalysisService {
     }
 
     const statusCounts = data.reduce((acc, result) => {
-      acc[result.analysis_status] = (acc[result.analysis_status] || 0) + 1;
+      const status = result.analysis_status || 'pending';
+      acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     return {
       total: data.length,
-      pending: statusCounts.pending || 0,
+      pending: (statusCounts.pending || 0) + (statusCounts.basic_complete || 0),
       analyzing: statusCounts.analyzing || 0,
       complete: statusCounts.complete || 0,
       failed: statusCounts.failed || 0

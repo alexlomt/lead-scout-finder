@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { WebsiteAnalysisService } from "@/services/websiteAnalysisService";
-import { RefreshCw, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Clock, Zap } from "lucide-react";
 
 interface AnalysisProgressProps {
   searchId: string;
@@ -24,11 +24,15 @@ const AnalysisProgress = ({ searchId, onAnalysisComplete }: AnalysisProgressProp
   useEffect(() => {
     updateProgress();
     
-    // Poll for progress every 5 seconds
-    const interval = setInterval(updateProgress, 5000);
+    // Poll for progress every 3 seconds while analysis is running
+    const interval = setInterval(() => {
+      if (progress.analyzing > 0 || progress.pending > 0) {
+        updateProgress();
+      }
+    }, 3000);
     
     return () => clearInterval(interval);
-  }, [searchId]);
+  }, [searchId, progress.analyzing, progress.pending]);
 
   const updateProgress = async () => {
     try {
@@ -65,9 +69,12 @@ const AnalysisProgress = ({ searchId, onAnalysisComplete }: AnalysisProgressProp
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg">Website Analysis Progress</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              Enhanced Website Analysis
+            </CardTitle>
             <CardDescription>
-              Enhanced scoring analysis for better lead qualification
+              AI-powered scoring for better lead qualification
             </CardDescription>
           </div>
           <button
@@ -115,8 +122,14 @@ const AnalysisProgress = ({ searchId, onAnalysisComplete }: AnalysisProgressProp
         </div>
 
         {isAnalyzing && (
-          <div className="text-sm text-muted-foreground">
-            Analysis is running in the background. Results will update automatically.
+          <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
+            🔄 Enhanced analysis is running in the background. Results will update automatically as each business is analyzed.
+          </div>
+        )}
+
+        {!isAnalyzing && progress.complete > 0 && (
+          <div className="text-sm text-green-700 bg-green-50 p-3 rounded-lg">
+            ✅ Enhanced analysis complete! All businesses now have detailed scoring.
           </div>
         )}
       </CardContent>
