@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -73,12 +72,12 @@ const Results = () => {
 
       setSearchData(search);
 
-      // Fetch search results with enhanced scoring
+      // Fetch search results with enhanced scoring - fix the query options
       const { data: searchResults, error: resultsError } = await supabase
         .from('search_results')
         .select('*')
         .eq('search_id', searchId)
-        .order('overall_score', { ascending: false, nullsLast: true });
+        .order('overall_score', { ascending: false, nullsFirst: false });
 
       if (resultsError) {
         console.error('Results fetch error:', resultsError);
