@@ -1,4 +1,3 @@
-
 export interface BusinessData {
   id: string;
   name: string;
@@ -17,7 +16,7 @@ export interface BusinessData {
 
 export interface SearchParams {
   location: string;
-  industry: string;
+  industry: string | null;
   radius: number;
 }
 
@@ -25,7 +24,51 @@ class OpenStreetMapService {
   private readonly OVERPASS_API = 'https://overpass-api.de/api/interpreter';
   private readonly NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
 
-  private getIndustryTags(industry: string): string[] {
+  private getIndustryTags(industry: string | null): string[] {
+    if (!industry) return [];
+    
+    // Map form values to internal categories
+    const industryMapping: Record<string, string> = {
+      'restaurant': 'restaurants-food',
+      'hotel': 'accommodation',
+      'cafe': 'restaurants-food',
+      'store': 'retail-shopping',
+      'supermarket': 'retail-shopping',
+      'hairdresser': 'beauty-wellness',
+      'laundry': 'services',
+      'bank': 'professional-services',
+      'pharmacy': 'health-medical',
+      'doctor': 'health-medical',
+      'dentist': 'health-medical',
+      'plumber': 'home-services',
+      'electrician': 'home-services',
+      'carpenter': 'construction',
+      'painter': 'construction',
+      'gym': 'beauty-wellness',
+      'spa': 'beauty-wellness',
+      'bakery': 'restaurants-food',
+      'butcher': 'restaurants-food',
+      'florist': 'retail-shopping',
+      'bookstore': 'retail-shopping',
+      'clothing store': 'retail-shopping',
+      'furniture store': 'retail-shopping',
+      'electronics store': 'retail-shopping',
+      'travel agency': 'professional-services',
+      'real estate agency': 'real-estate',
+      'insurance company': 'professional-services',
+      'school': 'education',
+      'library': 'education',
+      'museum': 'entertainment',
+      'art gallery': 'entertainment',
+      'movie theater': 'entertainment',
+      'park': 'entertainment',
+      'gas station': 'automotive',
+      'car repair': 'automotive',
+      'other': 'general'
+    };
+
+    const mappedIndustry = industryMapping[industry.toLowerCase().trim()] || 'general';
+
     const industryTagMap: Record<string, string[]> = {
       'restaurants-food': [
         'amenity=restaurant',
@@ -146,15 +189,32 @@ class OpenStreetMapService {
         'amenity=nightclub',
         'tourism=attraction'
       ],
-      'non-profit': [
-        'amenity=social_facility',
-        'amenity=community_centre',
-        'office=ngo',
-        'office=charity'
+      'accommodation': [
+        'tourism=hotel',
+        'tourism=motel',
+        'tourism=guest_house',
+        'tourism=hostel',
+        'tourism=apartment'
+      ],
+      'services': [
+        'shop=laundry',
+        'shop=dry_cleaning',
+        'amenity=post_office',
+        'office=government'
+      ],
+      'general': [
+        'amenity=restaurant',
+        'amenity=cafe',
+        'shop=supermarket',
+        'shop=convenience',
+        'amenity=bank',
+        'amenity=pharmacy',
+        'shop=clothes',
+        'office=company'
       ]
     };
 
-    return industryTagMap[industry] || [];
+    return industryTagMap[mappedIndustry] || industryTagMap['general'];
   }
 
   private async geocodeLocation(location: string): Promise<{ lat: number; lon: number; displayName: string } | null> {
@@ -189,7 +249,17 @@ class OpenStreetMapService {
     const radiusMeters = Math.round(radius * 1609.34); // Convert miles to meters
     
     if (industryTags.length === 0) {
-      throw new Error('No valid tags found for the selected industry');
+      // If no specific tags, search for general business amenities
+      return `[out:json][timeout:30];
+(
+  node["amenity"](around:${radiusMeters},${lat},${lon});
+  way["amenity"](around:${radiusMeters},${lat},${lon});
+  node["shop"](around:${radiusMeters},${lat},${lon});
+  way["shop"](around:${radiusMeters},${lat},${lon});
+  node["office"](around:${radiusMeters},${lat},${lon});
+  way["office"](around:${radiusMeters},${lat},${lon});
+);
+out center meta;`;
     }
     
     // Build query parts for each specific tag
@@ -374,42 +444,17 @@ out center meta;`;
 
       console.log('Geocoded location:', locationData);
 
-      // Get industry tags
+      // Get industry tags - now handles null industry properly
       const industryTags = this.getIndustryTags(params.industry);
-      if (industryTags.length === 0 && params.industry !== 'all') {
-        throw new Error('Selected industry category is not supported. Please choose a different industry.');
-      }
-
-      console.log('Industry tags:', industryTags);
-      
-      // For 'all' industries, we'll search broadly but still filter results
-      const searchTags = params.industry === 'all' ? 
-        ['amenity', 'shop', 'office', 'craft', 'healthcare', 'leisure'] : 
-        industryTags;
+      console.log('Industry tags for', params.industry, ':', industryTags);
       
       // Build and execute Overpass query
-      let query: string;
-      if (params.industry === 'all') {
-        // For 'all', search for common business tags
-        const radiusMeters = Math.round(params.radius * 1609.34);
-        query = `[out:json][timeout:30];
-(
-  node["amenity"](around:${radiusMeters},${locationData.lat},${locationData.lon});
-  way["amenity"](around:${radiusMeters},${locationData.lat},${locationData.lon});
-  node["shop"](around:${radiusMeters},${locationData.lat},${locationData.lon});
-  way["shop"](around:${radiusMeters},${locationData.lat},${locationData.lon});
-  node["office"](around:${radiusMeters},${locationData.lat},${locationData.lon});
-  way["office"](around:${radiusMeters},${locationData.lat},${locationData.lon});
-);
-out center meta;`;
-      } else {
-        query = this.buildOverpassQuery(
-          locationData.lat,
-          locationData.lon,
-          params.radius,
-          industryTags
-        );
-      }
+      const query = this.buildOverpassQuery(
+        locationData.lat,
+        locationData.lon,
+        params.radius,
+        industryTags
+      );
 
       console.log('Overpass query:', query);
 
@@ -434,13 +479,13 @@ out center meta;`;
         return [];
       }
 
-      // Parse and filter business data with strict industry filtering
+      // Parse and filter business data
       const businesses = data.elements
-        .map((element: any) => this.parseBusinessData(element, params.industry))
+        .map((element: any) => this.parseBusinessData(element, params.industry || 'general'))
         .filter((business: BusinessData | null): business is BusinessData => business !== null)
         .slice(0, 100); // Limit to 100 results to avoid overwhelming the user
 
-      console.log(`Found ${businesses.length} businesses after filtering for industry: ${params.industry}`);
+      console.log(`Found ${businesses.length} businesses after filtering`);
       return businesses;
 
     } catch (error) {
