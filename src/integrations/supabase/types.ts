@@ -114,42 +114,60 @@ export type Database = {
       search_results: {
         Row: {
           address: string | null
+          analysis_status: string | null
           business_name: string
           created_at: string
+          digital_presence_score: number | null
           email: string | null
           has_social_media: boolean | null
           has_website: boolean | null
           id: string
+          last_analyzed: string | null
+          overall_score: number | null
           phone: string | null
           search_id: string
+          seo_score: number | null
           web_presence_score: number | null
           website: string | null
+          website_quality_score: number | null
         }
         Insert: {
           address?: string | null
+          analysis_status?: string | null
           business_name: string
           created_at?: string
+          digital_presence_score?: number | null
           email?: string | null
           has_social_media?: boolean | null
           has_website?: boolean | null
           id?: string
+          last_analyzed?: string | null
+          overall_score?: number | null
           phone?: string | null
           search_id: string
+          seo_score?: number | null
           web_presence_score?: number | null
           website?: string | null
+          website_quality_score?: number | null
         }
         Update: {
           address?: string | null
+          analysis_status?: string | null
           business_name?: string
           created_at?: string
+          digital_presence_score?: number | null
           email?: string | null
           has_social_media?: boolean | null
           has_website?: boolean | null
           id?: string
+          last_analyzed?: string | null
+          overall_score?: number | null
           phone?: string | null
           search_id?: string
+          seo_score?: number | null
           web_presence_score?: number | null
           website?: string | null
+          website_quality_score?: number | null
         }
         Relationships: [
           {

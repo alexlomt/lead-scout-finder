@@ -3,12 +3,11 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Search, Globe, Mail, Phone, MapPin } from "lucide-react";
+import { ArrowLeft, Download, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import AnalysisProgress from "@/components/AnalysisProgress";
+import EnhancedSearchResults from "@/components/EnhancedSearchResults";
 
 interface SearchResult {
   id: string;
@@ -20,6 +19,11 @@ interface SearchResult {
   has_website: boolean;
   has_social_media: boolean;
   web_presence_score: number;
+  website_quality_score: number | null;
+  digital_presence_score: number | null;
+  seo_score: number | null;
+  overall_score: number | null;
+  analysis_status: string | null;
 }
 
 interface SearchData {
@@ -69,11 +73,12 @@ const Results = () => {
 
       setSearchData(search);
 
-      // Fetch search results
+      // Fetch search results with enhanced scoring
       const { data: searchResults, error: resultsError } = await supabase
         .from('search_results')
         .select('*')
-        .eq('search_id', searchId);
+        .eq('search_id', searchId)
+        .order('overall_score', { ascending: false, nullsLast: true });
 
       if (resultsError) {
         console.error('Results fetch error:', resultsError);
@@ -90,18 +95,12 @@ const Results = () => {
     }
   };
 
-  const getPresenceScore = (score: number) => {
-    if (score <= 3) return { label: "Poor", color: "destructive" };
-    if (score <= 6) return { label: "Fair", color: "secondary" };
-    return { label: "Good", color: "default" };
-  };
-
-  const toggleSelection = (resultId: string) => {
+  const handleResultSelect = (resultId: string, selected: boolean) => {
     const newSelection = new Set(selectedResults);
-    if (newSelection.has(resultId)) {
-      newSelection.delete(resultId);
-    } else {
+    if (selected) {
       newSelection.add(resultId);
+    } else {
+      newSelection.delete(resultId);
     }
     setSelectedResults(newSelection);
   };
@@ -122,8 +121,12 @@ const Results = () => {
       return;
     }
 
-    // Create CSV content
-    const headers = ["Business Name", "Address", "Phone", "Email", "Website", "Web Presence Score"];
+    // Create CSV content with enhanced scoring
+    const headers = [
+      "Business Name", "Address", "Phone", "Email", "Website",
+      "Overall Score", "Website Quality", "Digital Presence", "SEO Score",
+      "Analysis Status"
+    ];
     const csvContent = [
       headers.join(","),
       ...selectedData.map(result => [
@@ -132,7 +135,11 @@ const Results = () => {
         `"${result.phone || ''}"`,
         `"${result.email || ''}"`,
         `"${result.website || ''}"`,
-        result.web_presence_score
+        result.overall_score || 0,
+        result.website_quality_score || 0,
+        result.digital_presence_score || 0,
+        result.seo_score || 0,
+        `"${result.analysis_status || 'pending'}"`
       ].join(","))
     ].join("\n");
 
@@ -141,11 +148,11 @@ const Results = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `htmlscout-results-${searchData?.location}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `htmlscout-enhanced-results-${searchData?.location}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
 
-    toast.success(`Exported ${selectedData.length} results`);
+    toast.success(`Exported ${selectedData.length} results with enhanced scoring`);
   };
 
   if (loading) {
@@ -186,17 +193,22 @@ const Results = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search Info */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Search Results</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Enhanced Search Results</h1>
           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            <span className="flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              {searchData?.location}
-            </span>
+            <span>{searchData?.location}</span>
             <span>Radius: {searchData?.radius} miles</span>
             {searchData?.industry && <span>Industry: {searchData.industry}</span>}
             <span>{results.length} results found</span>
           </div>
         </div>
+
+        {/* Analysis Progress */}
+        {searchId && (
+          <AnalysisProgress 
+            searchId={searchId} 
+            onAnalysisComplete={fetchSearchData}
+          />
+        )}
 
         {/* Actions */}
         <div className="mb-6 flex justify-between items-center">
@@ -222,106 +234,12 @@ const Results = () => {
           </Button>
         </div>
 
-        {/* Results Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Lead Results</CardTitle>
-            <CardDescription>
-              Businesses with poor web presence that could benefit from your services
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {results.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No results found for this search.</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">Select</TableHead>
-                    <TableHead>Business Name</TableHead>
-                    <TableHead>Contact Info</TableHead>
-                    <TableHead>Web Presence</TableHead>
-                    <TableHead>Score</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {results.map((result) => {
-                    const presenceInfo = getPresenceScore(result.web_presence_score);
-                    return (
-                      <TableRow key={result.id}>
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedResults.has(result.id)}
-                            onChange={() => toggleSelection(result.id)}
-                            className="rounded border-gray-300"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <div>
-                            <div className="font-semibold">{result.business_name}</div>
-                            {result.address && (
-                              <div className="text-sm text-gray-500 flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {result.address}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {result.phone && (
-                              <div className="text-sm flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {result.phone}
-                              </div>
-                            )}
-                            {result.email && (
-                              <div className="text-sm flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {result.email}
-                              </div>
-                            )}
-                            {result.website && (
-                              <div className="text-sm flex items-center gap-1">
-                                <Globe className="h-3 w-3" />
-                                <a 
-                                  href={result.website} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline"
-                                >
-                                  {result.website}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="text-xs">
-                              Website: {result.has_website ? 'Yes' : 'No'}
-                            </div>
-                            <div className="text-xs">
-                              Social Media: {result.has_social_media ? 'Yes' : 'No'}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={presenceInfo.color as any}>
-                            {presenceInfo.label} ({result.web_presence_score}/10)
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        {/* Enhanced Results */}
+        <EnhancedSearchResults
+          results={results}
+          onResultSelect={handleResultSelect}
+          selectedResults={selectedResults}
+        />
       </main>
     </div>
   );

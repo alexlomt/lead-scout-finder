@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import SearchFormFields from "./SearchFormFields";
 import { openStreetMapService, BusinessData } from "@/services/openStreetMapService";
+import { WebsiteAnalysisService } from "@/services/websiteAnalysisService";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SearchCriteria {
@@ -59,7 +60,13 @@ const SearchForm = () => {
         website: business.website,
         has_website: !!business.website,
         has_social_media: false, // We'll enhance this later with social media APIs
-        web_presence_score: calculateWebPresenceScore(business)
+        web_presence_score: calculateWebPresenceScore(business),
+        // Initialize enhanced scoring fields
+        website_quality_score: 0,
+        digital_presence_score: 0,
+        seo_score: 0,
+        overall_score: 0,
+        analysis_status: 'pending'
       }));
 
       const { error } = await supabase
@@ -163,12 +170,17 @@ const SearchForm = () => {
       // Update search count after successful search
       await refreshProfile();
 
+      // Start enhanced analysis in the background
+      WebsiteAnalysisService.analyzeSearchResults(searchRecord.id).catch(error => {
+        console.error('Background analysis failed:', error);
+      });
+
       // Navigate to results with search ID
       navigate(`/results?search=${searchRecord.id}`);
 
       toast({
         title: "Search Completed",
-        description: `Found ${businesses.length} businesses matching your criteria!`,
+        description: `Found ${businesses.length} businesses! Enhanced analysis starting in background.`,
       });
 
     } catch (error) {
