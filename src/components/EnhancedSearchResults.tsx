@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
@@ -14,7 +13,7 @@ import {
   PaginationPrevious,
   PaginationEllipsis
 } from "@/components/ui/pagination";
-import { Globe, Mail, Phone, MapPin, TrendingUp, Search, Zap, Play, PlayCircle } from "lucide-react";
+import { Globe, Mail, Phone, MapPin, TrendingUp, Search, Zap } from "lucide-react";
 import { usePagination } from "@/hooks/usePagination";
 import { OnDemandAnalysisService, PageAnalysisProgress } from "@/services/onDemandAnalysisService";
 
@@ -47,7 +46,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
   const [sortBy, setSortBy] = useState<'overall_score' | 'website_quality' | 'digital_presence'>('overall_score');
   const [filterBy, setFilterBy] = useState<'all' | 'poor' | 'fair' | 'good'>('all');
   const [pageAnalysis, setPageAnalysis] = useState<Record<number, PageAnalysisProgress>>({});
-  const [isAnalyzingPage, setIsAnalyzingPage] = useState(false);
+  const [analyzingPages, setAnalyzingPages] = useState<Set<number>>(new Set());
 
   const getScoreColor = (score: number) => {
     if (score < 30) return 'text-red-600 bg-red-50';
@@ -87,6 +86,17 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
     }
   }, [pagination.currentPage, searchId]);
 
+  // Automatically analyze page when user navigates to it
+  useEffect(() => {
+    if (searchId && !analyzingPages.has(pagination.currentPage)) {
+      const currentPageProgress = pageAnalysis[pagination.currentPage];
+      // Only analyze if page hasn't been analyzed yet
+      if (currentPageProgress && currentPageProgress.status === 'pending') {
+        analyzeCurrentPageAutomatically();
+      }
+    }
+  }, [pagination.currentPage, pageAnalysis]);
+
   const loadPageAnalysisStatus = async (page: number) => {
     if (!searchId) return;
     
@@ -101,10 +111,11 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
     }
   };
 
-  const analyzeCurrentPage = async () => {
-    if (!searchId || isAnalyzingPage) return;
+  const analyzeCurrentPageAutomatically = async () => {
+    if (!searchId || analyzingPages.has(pagination.currentPage)) return;
     
-    setIsAnalyzingPage(true);
+    setAnalyzingPages(prev => new Set(prev).add(pagination.currentPage));
+    
     try {
       await OnDemandAnalysisService.analyzePageResults(searchId, pagination.currentPage, ITEMS_PER_PAGE);
       
@@ -118,7 +129,11 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
         
         if (progress.status === 'complete' || progress.status === 'failed') {
           clearInterval(pollInterval);
-          setIsAnalyzingPage(false);
+          setAnalyzingPages(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(pagination.currentPage);
+            return newSet;
+          });
           // Refresh the page to show updated results
           window.location.reload();
         }
@@ -126,27 +141,16 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
       
     } catch (error) {
       console.error('Failed to analyze page:', error);
-      setIsAnalyzingPage(false);
-    }
-  };
-
-  const analyzeAllResults = async () => {
-    if (!searchId || isAnalyzingPage) return;
-    
-    setIsAnalyzingPage(true);
-    try {
-      await OnDemandAnalysisService.analyzeAllPages(searchId, results.length, ITEMS_PER_PAGE);
-      setIsAnalyzingPage(false);
-      // Refresh the page to show updated results
-      window.location.reload();
-    } catch (error) {
-      console.error('Failed to analyze all results:', error);
-      setIsAnalyzingPage(false);
+      setAnalyzingPages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(pagination.currentPage);
+        return newSet;
+      });
     }
   };
 
   const currentPageAnalysis = pageAnalysis[pagination.currentPage];
-  const needsAnalysis = currentPageAnalysis && (currentPageAnalysis.analyzing > 0 || currentPageAnalysis.completed < currentPageAnalysis.total);
+  const isAnalyzingCurrentPage = analyzingPages.has(pagination.currentPage);
 
   const renderPaginationItems = () => {
     const items = [];
@@ -199,8 +203,8 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
 
   return (
     <div className="space-y-4">
-      {/* Page Analysis Controls */}
-      {searchId && (
+      {/* Page Analysis Status */}
+      {searchId && (currentPageAnalysis || isAnalyzingCurrentPage) && (
         <Card className="bg-blue-50 border-blue-200">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -212,28 +216,6 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
                 <CardDescription>
                   AI-powered analysis with Brave Search, Firecrawl, and OpenAI
                 </CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={analyzeCurrentPage}
-                  disabled={isAnalyzingPage || currentPageAnalysis?.status === 'complete'}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Play className="h-4 w-4" />
-                  Analyze This Page
-                </Button>
-                <Button
-                  onClick={analyzeAllResults}
-                  disabled={isAnalyzingPage}
-                  variant="default"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <PlayCircle className="h-4 w-4" />
-                  Analyze All Pages
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -318,7 +300,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
           const websiteScore = result.website_quality_score || 0;
           const digitalScore = result.digital_presence_score || 0;
           const seoScore = result.seo_score || 0;
-          const isAnalyzing = result.analysis_status === 'analyzing';
+          const isAnalyzing = result.analysis_status === 'analyzing' || isAnalyzingCurrentPage;
           const isComplete = result.analysis_status === 'complete';
 
           return (
@@ -420,7 +402,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
                 {/* Basic info for non-analyzed results */}
                 {!isComplete && !isAnalyzing && (
                   <div className="text-sm text-muted-foreground">
-                    Basic analysis complete. Click "Analyze This Page" for enhanced scoring.
+                    Enhanced analysis will start automatically when you view this page.
                   </div>
                 )}
               </CardContent>

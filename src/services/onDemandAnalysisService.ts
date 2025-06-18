@@ -167,22 +167,4 @@ export class OnDemandAnalysisService {
       return { page, total: 0, completed: 0, analyzing: 0, failed: 0, status: 'pending' };
     }
   }
-
-  static async analyzeAllPages(searchId: string, totalResults: number, itemsPerPage: number = 10): Promise<void> {
-    const totalPages = Math.ceil(totalResults / itemsPerPage);
-    
-    console.log(`Starting analysis of all ${totalPages} pages for search ${searchId}`);
-    
-    for (let page = 1; page <= totalPages; page++) {
-      console.log(`Analyzing page ${page} of ${totalPages}`);
-      await this.analyzePageResults(searchId, page, itemsPerPage);
-      
-      // Add delay between pages to prevent overwhelming the APIs
-      if (page < totalPages) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-    }
-    
-    console.log(`Completed analysis of all ${totalPages} pages`);
-  }
 }
