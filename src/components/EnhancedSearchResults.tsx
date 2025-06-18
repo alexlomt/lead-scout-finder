@@ -16,6 +16,7 @@ import {
 import { Globe, Mail, Phone, MapPin, TrendingUp, Search, Zap } from "lucide-react";
 import { usePagination } from "@/hooks/usePagination";
 import { OnDemandAnalysisService, PageAnalysisProgress } from "@/services/onDemandAnalysisService";
+import { toast } from "sonner";
 
 interface EnhancedSearchResult {
   id: string;
@@ -38,11 +39,12 @@ interface EnhancedSearchResultsProps {
   onResultSelect: (id: string, selected: boolean) => void;
   selectedResults: Set<string>;
   searchId?: string;
+  onResultsUpdate: () => void;
 }
 
 const ITEMS_PER_PAGE = 10;
 
-const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searchId }: EnhancedSearchResultsProps) => {
+const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searchId, onResultsUpdate }: EnhancedSearchResultsProps) => {
   const [sortBy, setSortBy] = useState<'overall_score' | 'website_quality' | 'digital_presence'>('overall_score');
   const [filterBy, setFilterBy] = useState<'all' | 'poor' | 'fair' | 'good'>('all');
   const [pageAnalysis, setPageAnalysis] = useState<Record<number, PageAnalysisProgress>>({});
@@ -71,7 +73,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
   const sortedResults = [...filteredResults].sort((a, b) => {
     const aScore = a[sortBy] || 0;
     const bScore = b[sortBy] || 0;
-    return bScore - aScore; // Descending order
+    return bScore - aScore;
   });
 
   const pagination = usePagination({
@@ -81,7 +83,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
 
   // Load page analysis status when page changes
   useEffect(() => {
-    if (searchId && !pageAnalysis[pagination.currentPage]) {
+    if (searchId) {
       loadPageAnalysisStatus(pagination.currentPage);
     }
   }, [pagination.currentPage, searchId]);
@@ -90,12 +92,11 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
   useEffect(() => {
     if (searchId && !analyzingPages.has(pagination.currentPage)) {
       const currentPageProgress = pageAnalysis[pagination.currentPage];
-      // Only analyze if page hasn't been analyzed yet
-      if (currentPageProgress && currentPageProgress.status === 'pending') {
+      if (!currentPageProgress || currentPageProgress.status === 'pending') {
         analyzeCurrentPageAutomatically();
       }
     }
-  }, [pagination.currentPage, pageAnalysis]);
+  }, [pagination.currentPage, pageAnalysis, searchId]);
 
   const loadPageAnalysisStatus = async (page: number) => {
     if (!searchId) return;
@@ -112,32 +113,63 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
   };
 
   const analyzeCurrentPageAutomatically = async () => {
-    if (!searchId || analyzingPages.has(pagination.currentPage)) return;
+    if (!searchId || analyzingPages.has(pagination.currentPage)) {
+      console.log('Skipping analysis - searchId missing or already analyzing');
+      return;
+    }
     
+    console.log(`Starting automatic analysis for page ${pagination.currentPage}`);
     setAnalyzingPages(prev => new Set(prev).add(pagination.currentPage));
     
     try {
+      // Start the analysis
       await OnDemandAnalysisService.analyzePageResults(searchId, pagination.currentPage, ITEMS_PER_PAGE);
       
-      // Poll for updates
+      // Poll for updates every 3 seconds
       const pollInterval = setInterval(async () => {
-        const progress = await OnDemandAnalysisService.getPageAnalysisProgress(searchId, pagination.currentPage, ITEMS_PER_PAGE);
-        setPageAnalysis(prev => ({
-          ...prev,
-          [pagination.currentPage]: progress
-        }));
+        console.log(`Polling analysis progress for page ${pagination.currentPage}`);
         
-        if (progress.status === 'complete' || progress.status === 'failed') {
-          clearInterval(pollInterval);
-          setAnalyzingPages(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(pagination.currentPage);
-            return newSet;
-          });
-          // Refresh the page to show updated results
-          window.location.reload();
+        try {
+          const progress = await OnDemandAnalysisService.getPageAnalysisProgress(searchId, pagination.currentPage, ITEMS_PER_PAGE);
+          console.log(`Page ${pagination.currentPage} progress:`, progress);
+          
+          setPageAnalysis(prev => ({
+            ...prev,
+            [pagination.currentPage]: progress
+          }));
+          
+          if (progress.status === 'complete' || progress.status === 'failed') {
+            console.log(`Analysis ${progress.status} for page ${pagination.currentPage}`);
+            clearInterval(pollInterval);
+            setAnalyzingPages(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(pagination.currentPage);
+              return newSet;
+            });
+            
+            // Refresh the results data
+            onResultsUpdate();
+            
+            if (progress.status === 'complete') {
+              toast.success(`Page ${pagination.currentPage} analysis complete!`);
+            } else {
+              toast.error(`Page ${pagination.currentPage} analysis failed`);
+            }
+          }
+        } catch (error) {
+          console.error('Error polling analysis progress:', error);
         }
-      }, 2000);
+      }, 3000);
+      
+      // Stop polling after 5 minutes to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        setAnalyzingPages(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(pagination.currentPage);
+          return newSet;
+        });
+      }, 300000);
       
     } catch (error) {
       console.error('Failed to analyze page:', error);
@@ -146,6 +178,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
         newSet.delete(pagination.currentPage);
         return newSet;
       });
+      toast.error('Failed to start page analysis');
     }
   };
 
@@ -156,7 +189,6 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
     const items = [];
     const { currentPage, totalPages, goToPage } = pagination;
     
-    // Show first page
     if (currentPage > 3) {
       items.push(
         <PaginationItem key={1}>
@@ -170,7 +202,6 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
       }
     }
     
-    // Show pages around current page
     const start = Math.max(1, currentPage - 2);
     const end = Math.min(totalPages, currentPage + 2);
     
@@ -184,7 +215,6 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
       );
     }
     
-    // Show last page
     if (currentPage < totalPages - 2) {
       if (currentPage < totalPages - 3) {
         items.push(<PaginationEllipsis key="ellipsis2" />);
@@ -219,7 +249,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
               </div>
             </div>
           </CardHeader>
-          {currentPageAnalysis && (
+          {(currentPageAnalysis && currentPageAnalysis.total > 0) && (
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -233,6 +263,13 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
                   <span>Analyzing: {currentPageAnalysis.analyzing}</span>
                   <span>Failed: {currentPageAnalysis.failed}</span>
                 </div>
+              </div>
+            </CardContent>
+          )}
+          {isAnalyzingCurrentPage && !currentPageAnalysis && (
+            <CardContent>
+              <div className="text-sm text-blue-600">
+                Starting analysis for page {pagination.currentPage}...
               </div>
             </CardContent>
           )}

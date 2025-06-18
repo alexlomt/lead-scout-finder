@@ -232,6 +232,7 @@ const Results = () => {
           onResultSelect={handleResultSelect}
           selectedResults={selectedResults}
           searchId={searchId || undefined}
+          onResultsUpdate={fetchSearchData}
         />
       </main>
     </div>
