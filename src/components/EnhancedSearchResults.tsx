@@ -125,7 +125,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
       // Start the analysis
       await OnDemandAnalysisService.analyzePageResults(searchId, pagination.currentPage, ITEMS_PER_PAGE);
       
-      // Poll for updates every 3 seconds
+      // Poll for updates more frequently
       const pollInterval = setInterval(async () => {
         console.log(`Polling analysis progress for page ${pagination.currentPage}`);
         
@@ -148,7 +148,9 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
             });
             
             // Refresh the results data
-            onResultsUpdate();
+            if (onResultsUpdate) {
+              onResultsUpdate();
+            }
             
             if (progress.status === 'complete') {
               toast.success(`Page ${pagination.currentPage} analysis complete!`);
@@ -159,9 +161,9 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
         } catch (error) {
           console.error('Error polling analysis progress:', error);
         }
-      }, 3000);
+      }, 2000); // Poll every 2 seconds instead of 3
       
-      // Stop polling after 5 minutes to prevent infinite polling
+      // Stop polling after 3 minutes to prevent infinite polling
       setTimeout(() => {
         clearInterval(pollInterval);
         setAnalyzingPages(prev => {
@@ -169,7 +171,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searc
           newSet.delete(pagination.currentPage);
           return newSet;
         });
-      }, 300000);
+      }, 180000);
       
     } catch (error) {
       console.error('Failed to analyze page:', error);

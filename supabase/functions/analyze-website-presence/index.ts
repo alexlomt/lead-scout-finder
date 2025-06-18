@@ -248,7 +248,7 @@ async function analyzeWebsiteWithFirecrawl(website: string, apiKey: string) {
       formats: ['markdown', 'html'],
       onlyMainContent: true,
       includeTags: ['title', 'meta', 'h1', 'h2', 'h3'],
-      timeout: 10000
+      timeout: 15000
     })
   })
 
@@ -296,7 +296,8 @@ SEO (0-30):
 - Header structure and content (0-10)
 - Overall SEO optimization (0-10)
 
-Respond with only a JSON object: {"websiteQuality": number, "seo": number}
+Respond with ONLY a JSON object in this exact format: {"websiteQuality": number, "seo": number}
+Do not include any markdown formatting or additional text.
 `
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -320,9 +321,17 @@ Respond with only a JSON object: {"websiteQuality": number, "seo": number}
   }
 
   const data = await response.json()
-  const content_response = data.choices[0]?.message?.content || '{}'
+  let content_response = data.choices[0]?.message?.content || '{}'
   
-  console.log('OpenAI response:', content_response)
+  console.log('OpenAI raw response:', content_response)
+  
+  // Clean up the response to handle markdown formatting
+  content_response = content_response
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim()
+  
+  console.log('OpenAI cleaned response:', content_response)
   
   try {
     const parsed = JSON.parse(content_response)
@@ -331,7 +340,8 @@ Respond with only a JSON object: {"websiteQuality": number, "seo": number}
       seo: Math.min(Math.max(parsed.seo || 15, 0), 30)
     }
   } catch (parseError) {
-    console.error('Failed to parse OpenAI response:', parseError)
+    console.error('Failed to parse OpenAI response after cleanup:', parseError)
+    console.error('Problematic content:', content_response)
     // Fallback if JSON parsing fails
     return { websiteQuality: 20, seo: 15 }
   }

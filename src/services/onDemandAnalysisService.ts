@@ -51,59 +51,70 @@ export class OnDemandAnalysisService {
         return;
       }
 
-      // Process each result individually with proper error handling
+      // Process results in parallel with concurrency limit
+      const concurrencyLimit = 3; // Process max 3 at a time
+      const batches = [];
+      
+      for (let i = 0; i < results.length; i += concurrencyLimit) {
+        batches.push(results.slice(i, i + concurrencyLimit));
+      }
+
       let completedCount = 0;
       let failedCount = 0;
 
-      for (const result of results) {
-        try {
-          console.log(`Analyzing business: ${result.business_name}`);
-          
-          const { data, error } = await supabase.functions.invoke('analyze-website-presence', {
-            body: {
-              searchResultId: result.id,
-              businessName: result.business_name,
-              website: result.website,
-              address: result.address
-            }
-          });
+      for (const batch of batches) {
+        const promises = batch.map(async (result) => {
+          try {
+            console.log(`Analyzing business: ${result.business_name}`);
+            
+            const { data, error } = await supabase.functions.invoke('analyze-website-presence', {
+              body: {
+                searchResultId: result.id,
+                businessName: result.business_name,
+                website: result.website,
+                address: result.address
+              }
+            });
 
-          if (error) {
-            console.error('Edge function error:', error);
+            if (error) {
+              console.error('Edge function error:', error);
+              failedCount++;
+              
+              // Mark individual result as failed
+              await supabase
+                .from('search_results')
+                .update({ analysis_status: 'failed' })
+                .eq('id', result.id);
+            } else if (data?.success) {
+              completedCount++;
+              console.log(`Successfully analyzed: ${result.business_name}`);
+            } else {
+              failedCount++;
+              console.error(`Failed to analyze ${result.business_name}:`, data?.error);
+              
+              // Mark individual result as failed
+              await supabase
+                .from('search_results')
+                .update({ analysis_status: 'failed' })
+                .eq('id', result.id);
+            }
+          } catch (error) {
             failedCount++;
+            console.error(`Exception analyzing ${result.business_name}:`, error);
             
-            // Mark individual result as failed
-            await supabase
-              .from('search_results')
-              .update({ analysis_status: 'failed' })
-              .eq('id', result.id);
-          } else if (data?.success) {
-            completedCount++;
-            console.log(`Successfully analyzed: ${result.business_name}`);
-          } else {
-            failedCount++;
-            console.error(`Failed to analyze ${result.business_name}:`, data?.error);
-            
-            // Mark individual result as failed
+            // Mark as failed
             await supabase
               .from('search_results')
               .update({ analysis_status: 'failed' })
               .eq('id', result.id);
           }
-          
-          // Add delay between requests to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-        } catch (error) {
-          failedCount++;
-          console.error(`Exception analyzing ${result.business_name}:`, error);
-          
-          // Mark as failed
-          await supabase
-            .from('search_results')
-            .update({ analysis_status: 'failed' })
-            .eq('id', result.id);
-        }
+        });
+
+        // Wait for this batch to complete before processing the next
+        await Promise.all(promises);
+        
+        // Small delay between batches to avoid overwhelming the APIs
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       console.log(`Page ${page} analysis complete. Completed: ${completedCount}, Failed: ${failedCount}`);
