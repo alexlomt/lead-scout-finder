@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import AnalysisProgress from "@/components/AnalysisProgress";
 import EnhancedSearchResults from "@/components/EnhancedSearchResults";
 
 interface SearchResult {
@@ -72,7 +72,7 @@ const Results = () => {
 
       setSearchData(search);
 
-      // Fetch search results with enhanced scoring - fix the query options
+      // Fetch ALL search results with enhanced scoring - removed pagination limit
       const { data: searchResults, error: resultsError } = await supabase
         .from('search_results')
         .select('*')
@@ -85,6 +85,7 @@ const Results = () => {
         return;
       }
 
+      console.log(`Loaded ${searchResults?.length || 0} total results for search ${searchId}`);
       setResults(searchResults || []);
     } catch (error) {
       console.error('Fetch error:', error);
@@ -197,17 +198,9 @@ const Results = () => {
             <span>{searchData?.location}</span>
             <span>Radius: {searchData?.radius} miles</span>
             {searchData?.industry && <span>Industry: {searchData.industry}</span>}
-            <span>{results.length} results found</span>
+            <span>{results.length} results found (all results loaded)</span>
           </div>
         </div>
-
-        {/* Analysis Progress */}
-        {searchId && (
-          <AnalysisProgress 
-            searchId={searchId} 
-            onAnalysisComplete={fetchSearchData}
-          />
-        )}
 
         {/* Actions */}
         <div className="mb-6 flex justify-between items-center">
@@ -233,11 +226,12 @@ const Results = () => {
           </Button>
         </div>
 
-        {/* Enhanced Results */}
+        {/* Enhanced Results with Pagination */}
         <EnhancedSearchResults
           results={results}
           onResultSelect={handleResultSelect}
           selectedResults={selectedResults}
+          searchId={searchId || undefined}
         />
       </main>
     </div>

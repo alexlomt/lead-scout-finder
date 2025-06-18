@@ -1,11 +1,22 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Globe, Mail, Phone, MapPin, TrendingUp, Search, Zap } from "lucide-react";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious,
+  PaginationEllipsis
+} from "@/components/ui/pagination";
+import { Globe, Mail, Phone, MapPin, TrendingUp, Search, Zap, Play, PlayCircle } from "lucide-react";
+import { usePagination } from "@/hooks/usePagination";
+import { OnDemandAnalysisService, PageAnalysisProgress } from "@/services/onDemandAnalysisService";
 
 interface EnhancedSearchResult {
   id: string;
@@ -27,11 +38,16 @@ interface EnhancedSearchResultsProps {
   results: EnhancedSearchResult[];
   onResultSelect: (id: string, selected: boolean) => void;
   selectedResults: Set<string>;
+  searchId?: string;
 }
 
-const EnhancedSearchResults = ({ results, onResultSelect, selectedResults }: EnhancedSearchResultsProps) => {
+const ITEMS_PER_PAGE = 10;
+
+const EnhancedSearchResults = ({ results, onResultSelect, selectedResults, searchId }: EnhancedSearchResultsProps) => {
   const [sortBy, setSortBy] = useState<'overall_score' | 'website_quality' | 'digital_presence'>('overall_score');
   const [filterBy, setFilterBy] = useState<'all' | 'poor' | 'fair' | 'good'>('all');
+  const [pageAnalysis, setPageAnalysis] = useState<Record<number, PageAnalysisProgress>>({});
+  const [isAnalyzingPage, setIsAnalyzingPage] = useState(false);
 
   const getScoreColor = (score: number) => {
     if (score < 30) return 'text-red-600 bg-red-50';
@@ -59,8 +75,188 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults }: Enh
     return bScore - aScore; // Descending order
   });
 
+  const pagination = usePagination({
+    data: sortedResults,
+    itemsPerPage: ITEMS_PER_PAGE
+  });
+
+  // Load page analysis status when page changes
+  useEffect(() => {
+    if (searchId && !pageAnalysis[pagination.currentPage]) {
+      loadPageAnalysisStatus(pagination.currentPage);
+    }
+  }, [pagination.currentPage, searchId]);
+
+  const loadPageAnalysisStatus = async (page: number) => {
+    if (!searchId) return;
+    
+    try {
+      const progress = await OnDemandAnalysisService.getPageAnalysisProgress(searchId, page, ITEMS_PER_PAGE);
+      setPageAnalysis(prev => ({
+        ...prev,
+        [page]: progress
+      }));
+    } catch (error) {
+      console.error('Failed to load page analysis status:', error);
+    }
+  };
+
+  const analyzeCurrentPage = async () => {
+    if (!searchId || isAnalyzingPage) return;
+    
+    setIsAnalyzingPage(true);
+    try {
+      await OnDemandAnalysisService.analyzePageResults(searchId, pagination.currentPage, ITEMS_PER_PAGE);
+      
+      // Poll for updates
+      const pollInterval = setInterval(async () => {
+        const progress = await OnDemandAnalysisService.getPageAnalysisProgress(searchId, pagination.currentPage, ITEMS_PER_PAGE);
+        setPageAnalysis(prev => ({
+          ...prev,
+          [pagination.currentPage]: progress
+        }));
+        
+        if (progress.status === 'complete' || progress.status === 'failed') {
+          clearInterval(pollInterval);
+          setIsAnalyzingPage(false);
+          // Refresh the page to show updated results
+          window.location.reload();
+        }
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Failed to analyze page:', error);
+      setIsAnalyzingPage(false);
+    }
+  };
+
+  const analyzeAllResults = async () => {
+    if (!searchId || isAnalyzingPage) return;
+    
+    setIsAnalyzingPage(true);
+    try {
+      await OnDemandAnalysisService.analyzeAllPages(searchId, results.length, ITEMS_PER_PAGE);
+      setIsAnalyzingPage(false);
+      // Refresh the page to show updated results
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to analyze all results:', error);
+      setIsAnalyzingPage(false);
+    }
+  };
+
+  const currentPageAnalysis = pageAnalysis[pagination.currentPage];
+  const needsAnalysis = currentPageAnalysis && (currentPageAnalysis.analyzing > 0 || currentPageAnalysis.completed < currentPageAnalysis.total);
+
+  const renderPaginationItems = () => {
+    const items = [];
+    const { currentPage, totalPages, goToPage } = pagination;
+    
+    // Show first page
+    if (currentPage > 3) {
+      items.push(
+        <PaginationItem key={1}>
+          <PaginationLink onClick={() => goToPage(1)} isActive={currentPage === 1}>
+            1
+          </PaginationLink>
+        </PaginationItem>
+      );
+      if (currentPage > 4) {
+        items.push(<PaginationEllipsis key="ellipsis1" />);
+      }
+    }
+    
+    // Show pages around current page
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = start; i <= end; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink onClick={() => goToPage(i)} isActive={currentPage === i}>
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+    
+    // Show last page
+    if (currentPage < totalPages - 2) {
+      if (currentPage < totalPages - 3) {
+        items.push(<PaginationEllipsis key="ellipsis2" />);
+      }
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink onClick={() => goToPage(totalPages)} isActive={currentPage === totalPages}>
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+    
+    return items;
+  };
+
   return (
     <div className="space-y-4">
+      {/* Page Analysis Controls */}
+      {searchId && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-blue-600" />
+                  Enhanced Analysis (Page {pagination.currentPage})
+                </CardTitle>
+                <CardDescription>
+                  AI-powered analysis with Brave Search, Firecrawl, and OpenAI
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={analyzeCurrentPage}
+                  disabled={isAnalyzingPage || currentPageAnalysis?.status === 'complete'}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Play className="h-4 w-4" />
+                  Analyze This Page
+                </Button>
+                <Button
+                  onClick={analyzeAllResults}
+                  disabled={isAnalyzingPage}
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Analyze All Pages
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          {currentPageAnalysis && (
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Page Progress</span>
+                  <span>{Math.round((currentPageAnalysis.completed / currentPageAnalysis.total) * 100)}%</span>
+                </div>
+                <Progress value={(currentPageAnalysis.completed / currentPageAnalysis.total) * 100} className="h-2" />
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <span>Total: {currentPageAnalysis.total}</span>
+                  <span>Complete: {currentPageAnalysis.completed}</span>
+                  <span>Analyzing: {currentPageAnalysis.analyzing}</span>
+                  <span>Failed: {currentPageAnalysis.failed}</span>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="flex items-center gap-4">
@@ -89,13 +285,35 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults }: Enh
         </div>
 
         <div className="text-sm text-muted-foreground">
-          {sortedResults.length} results shown
+          Showing {pagination.startIndex}-{pagination.endIndex} of {sortedResults.length} results
+          (Page {pagination.currentPage} of {pagination.totalPages})
         </div>
       </div>
 
+      {/* Pagination Controls - Top */}
+      {pagination.totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={pagination.previousPage}
+                className={!pagination.hasPreviousPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+            {renderPaginationItems()}
+            <PaginationItem>
+              <PaginationNext 
+                onClick={pagination.nextPage}
+                className={!pagination.hasNextPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
+
       {/* Results Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {sortedResults.map((result) => {
+        {pagination.currentItems.map((result) => {
           const overallScore = result.overall_score || 0;
           const websiteScore = result.website_quality_score || 0;
           const digitalScore = result.digital_presence_score || 0;
@@ -202,7 +420,7 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults }: Enh
                 {/* Basic info for non-analyzed results */}
                 {!isComplete && !isAnalyzing && (
                   <div className="text-sm text-muted-foreground">
-                    Basic analysis complete. Enhanced analysis pending.
+                    Basic analysis complete. Click "Analyze This Page" for enhanced scoring.
                   </div>
                 )}
               </CardContent>
@@ -210,6 +428,27 @@ const EnhancedSearchResults = ({ results, onResultSelect, selectedResults }: Enh
           );
         })}
       </div>
+
+      {/* Pagination Controls - Bottom */}
+      {pagination.totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={pagination.previousPage}
+                className={!pagination.hasPreviousPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+            {renderPaginationItems()}
+            <PaginationItem>
+              <PaginationNext 
+                onClick={pagination.nextPage}
+                className={!pagination.hasNextPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
 
       {sortedResults.length === 0 && (
         <Card>

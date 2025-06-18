@@ -250,7 +250,7 @@ class OpenStreetMapService {
     
     if (industryTags.length === 0) {
       // If no specific tags, search for general business amenities
-      return `[out:json][timeout:30];
+      return `[out:json][timeout:60];
 (
   node["amenity"](around:${radiusMeters},${lat},${lon});
   way["amenity"](around:${radiusMeters},${lat},${lon});
@@ -269,7 +269,7 @@ out center meta;`;
         way["${tag.split('=')[0]}"="${tag.split('=')[1]}"](around:${radiusMeters},${lat},${lon});`;
     }).join('');
     
-    return `[out:json][timeout:30];
+    return `[out:json][timeout:60];
 (${queryParts}
 );
 out center meta;`;
@@ -448,7 +448,7 @@ out center meta;`;
       const industryTags = this.getIndustryTags(params.industry);
       console.log('Industry tags for', params.industry, ':', industryTags);
       
-      // Build and execute Overpass query
+      // Build and execute Overpass query with increased timeout
       const query = this.buildOverpassQuery(
         locationData.lat,
         locationData.lon,
@@ -479,13 +479,12 @@ out center meta;`;
         return [];
       }
 
-      // Parse and filter business data
+      // Parse and filter business data - REMOVED the .slice(0, 100) limit
       const businesses = data.elements
         .map((element: any) => this.parseBusinessData(element, params.industry || 'general'))
-        .filter((business: BusinessData | null): business is BusinessData => business !== null)
-        .slice(0, 100); // Limit to 100 results to avoid overwhelming the user
+        .filter((business: BusinessData | null): business is BusinessData => business !== null);
 
-      console.log(`Found ${businesses.length} businesses after filtering`);
+      console.log(`Found ${businesses.length} businesses after filtering (no artificial limit)`);
       return businesses;
 
     } catch (error) {
